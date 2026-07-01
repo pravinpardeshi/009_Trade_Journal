@@ -1,5 +1,5 @@
 #!/bin/sh
-APP_DIR="$HOME/reporting-app"
+APP_DIR="$HOME/009_Trade_Journal"
 BACKEND_DIR="$APP_DIR/backend"
 VENV_PYTHON="$APP_DIR/.venv/bin/python"
 HOST="0.0.0.0"
