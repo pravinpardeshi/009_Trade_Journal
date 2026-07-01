@@ -1,5 +1,5 @@
 #!/bin/sh
-APP_DIR="/home/pravin/opencode_projects/000_for_random_use/reporting-app"
+APP_DIR="$HOME/reporting-app"
 BACKEND_DIR="$APP_DIR/backend"
 VENV_PYTHON="$APP_DIR/.venv/bin/python"
 HOST="0.0.0.0"
