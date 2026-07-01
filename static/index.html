@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trading Journal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
+</head>
+<body>
+  <nav class="sidebar collapsed" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-brand-icon">📈</span>
+      <span class="sidebar-brand-text">TradeJournal</span>
+    </div>
+    <div class="sidebar-nav">
+      <button class="nav-item active" data-section="entry">
+        <span class="nav-icon">📝</span>
+        <span class="nav-text">Entry Form</span>
+      </button>
+      <button class="nav-item" data-section="reports">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">Reports</span>
+      </button>
+      <button class="nav-item" data-section="history">
+        <span class="nav-icon">📋</span>
+        <span class="nav-text">Trade History</span>
+      </button>
+      <button class="nav-item nav-backup" id="navBackup" data-section="backup">
+        <span class="nav-icon">💾</span>
+        <span class="nav-text">Backup DB</span>
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <button class="theme-btn" id="themeToggle" title="Toggle theme">
+        <span class="nav-icon" id="themeIcon">🌙</span>
+        <span class="nav-text" id="themeLabel">Dark Mode</span>
+      </button>
+    </div>
+  </nav>
+
+  <main class="main-content" id="mainContent">
+    <!-- Entry Form Section -->
+    <section class="content-section active" id="section-entry">
+      <h1>New Trade Entry</h1>
+      <form id="tradeForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="entry_date">Entry Date</label>
+            <input type="date" id="entry_date" required>
+          </div>
+          <div class="form-group">
+            <label for="exit_date">Exit Date</label>
+            <input type="date" id="exit_date" required>
+          </div>
+          <div class="form-group">
+            <label for="scrip_name">Scrip Name</label>
+            <input type="text" id="scrip_name" placeholder="e.g. NIFTY 24500 PE" required>
+          </div>
+          <div class="form-group">
+            <label for="buy_sell">Buy / Sell</label>
+            <select id="buy_sell" required>
+              <option value="">-- Select --</option>
+              <option value="BUY">BUY</option>
+              <option value="SELL">SELL</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="option_type">Option Type</label>
+            <select id="option_type" required>
+              <option value="">-- Select --</option>
+              <option value="CE">CE (Call)</option>
+              <option value="PE">PE (Put)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="entry_price">Entry Price</label>
+            <input type="number" id="entry_price" step="0.01" placeholder="e.g. 145.90" required>
+          </div>
+          <div class="form-group">
+            <label for="exit_price">Exit Price</label>
+            <input type="number" id="exit_price" step="0.01" placeholder="e.g. 160.25" required>
+          </div>
+          <div class="form-group">
+            <label for="quantity">Quantity</label>
+            <input type="number" id="quantity" step="1" placeholder="e.g. 195" required>
+          </div>
+          <div class="form-group full-width">
+            <label for="notes">Notes</label>
+            <textarea id="notes" rows="3" placeholder="Optional notes..."></textarea>
+          </div>
+        </div>
+        <div class="calc-preview">
+          <h3>Calculated Preview</h3>
+          <div class="calc-grid">
+            <div><strong>Profit/Loss (per unit):</strong> <span id="preview_pl_per_unit">--</span></div>
+            <div><strong>Profit/Loss (total):</strong> <span id="preview_pl_total">--</span></div>
+            <div><strong>% Returns:</strong> <span id="preview_returns">--</span></div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 0.75rem; align-items: center; justify-content: center;">
+          <button type="submit" id="formSubmitBtn">Save Trade</button>
+          <button type="button" id="cancelEditBtn" style="display: none;">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Reports Section -->
+    <section class="content-section" id="section-reports">
+      <h1>Reports</h1>
+      <div class="report-actions">
+        <button class="report-btn active" data-report="weekly">Weekly Report</button>
+        <button class="report-btn" data-report="monthly">Monthly Report</button>
+        <button class="export-btn" id="exportReportPDF">Export PDF</button>
+      </div>
+      <div id="reportContainer">
+        <h3 id="reportTitle">Weekly Report</h3>
+        <div class="table-wrapper">
+          <table id="reportTable">
+            <thead>
+              <tr>
+                <th>Period</th>
+                <th class="num">Trades</th>
+                <th class="num">Wins</th>
+                <th class="num">Losses</th>
+                <th class="num">Win Rate</th>
+                <th class="num">Total P/L</th>
+                <th class="num">Return %</th>
+                <th class="num">Total Qty</th>
+              </tr>
+            </thead>
+            <tbody id="reportTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Trade History Section -->
+    <section class="content-section" id="section-history">
+      <h1>Trade History</h1>
+      <div class="filter-bar">
+        <div class="filter-group">
+          <label for="filter_from">From</label>
+          <input type="date" id="filter_from">
+        </div>
+        <div class="filter-group">
+          <label for="filter_to">To</label>
+          <input type="date" id="filter_to">
+        </div>
+        <button class="filter-btn" id="filterApply">Apply</button>
+        <button class="filter-btn filter-clear" id="filterClear">Clear</button>
+        <button class="export-btn" id="exportTradesCSV">Export CSV</button>
+        <button class="backup-btn" id="backupDB">Backup DB</button>
+      </div>
+      <div id="loading">Loading trades...</div>
+      <div class="table-wrapper">
+        <table id="tradeTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Entry Date</th>
+              <th>Exit Date</th>
+              <th>Scrip Name</th>
+              <th>Type</th>
+              <th>B/S</th>
+              <th>Entry Price</th>
+              <th>Exit Price</th>
+              <th>P/L per unit</th>
+              <th>Qty</th>
+              <th>P/L Total</th>
+              <th>% Returns</th>
+              <th>Notes</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="tradeTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Database Backup Section -->
+    <section class="content-section" id="section-backup">
+      <h1>Database Backup &amp; Restore</h1>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        Download a full SQL dump of the database for safekeeping or migration.
+      </p>
+      <div class="backup-info">
+        <button class="backup-btn" id="backupSectionBtn">💾  Download Backup</button>
+        <div id="backupResult" style="display: none; margin-top: 1.5rem;">
+          <p><strong>Last backup file:</strong> <code id="backupFilename"></code></p>
+          <p id="backupTimestamp"></p>
+        </div>
+      </div>
+
+      <hr style="margin: 2rem 0; border-color: var(--border-color);">
+
+      <h2>Restore from Backup</h2>
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">
+        Upload a previously downloaded <code>.sql</code> backup file to restore the database.
+        <strong style="color: var(--text-negative);">This will replace all existing data.</strong>
+      </p>
+      <div class="restore-info">
+        <input type="file" id="restoreFileInput" accept=".sql" style="display: block; margin-bottom: 0.75rem;">
+        <button class="backup-btn restore-btn" id="restoreBtn">⚠️  Restore Database</button>
+        <div id="restoreResult" style="display: none; margin-top: 1rem;"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="/static/script.js"></script>
+</body>
+</html>

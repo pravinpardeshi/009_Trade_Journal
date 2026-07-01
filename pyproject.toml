@@ -1,0 +1,18 @@
+[project]
+name = "reporting-app"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "fyers-apiv3>=3.1.13",
+    "pandas>=3.0.3",
+    "psycopg2-binary==2.9.10",
+    "pydantic==2.10.4",
+    "pyotp>=2.10.0",
+    "python-multipart>=0.0.32",
+    "pytz>=2026.2",
+    "sqlalchemy==2.0.36",
+    "uvicorn==0.34.0",
+]
