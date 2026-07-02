@@ -324,6 +324,12 @@ h3 {
   color: var(--text-secondary);
 }
 
+.form-group label .optional {
+  font-weight: 400;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
 .form-group input,
 .form-group select,
 .form-group textarea {

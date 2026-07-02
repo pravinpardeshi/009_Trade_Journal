@@ -57,6 +57,11 @@
             <input type="date" id="exit_date" required>
           </div>
           <div class="form-group">
+            <label for="customer_name">Customer Name</label>
+            <input type="text" id="customer_name" placeholder="e.g. ABC Trading" list="customerList">
+            <datalist id="customerList"></datalist>
+          </div>
+          <div class="form-group">
             <label for="scrip_name">Scrip Name</label>
             <input type="text" id="scrip_name" placeholder="e.g. NIFTY 24500 PE" required>
           </div>
@@ -69,11 +74,11 @@
             </select>
           </div>
           <div class="form-group">
-            <label for="option_type">Option Type</label>
-            <select id="option_type" required>
-              <option value="">-- Select --</option>
-              <option value="CE">CE (Call)</option>
-              <option value="PE">PE (Put)</option>
+            <label for="option_type">Instrument</label>
+            <select id="option_type">
+              <option value="">-- Equity / Commodity --</option>
+              <option value="CE">CE (Call Option)</option>
+              <option value="PE">PE (Put Option)</option>
             </select>
           </div>
           <div class="form-group">
@@ -150,6 +155,14 @@
           <label for="filter_to">To</label>
           <input type="date" id="filter_to">
         </div>
+        <div class="filter-group">
+          <label for="filter_customer">Customer</label>
+          <input type="text" id="filter_customer" placeholder="Search customer...">
+        </div>
+        <div class="filter-group">
+          <label for="filter_search">Search</label>
+          <input type="text" id="filter_search" placeholder="Scrip, notes...">
+        </div>
         <button class="filter-btn" id="filterApply">Apply</button>
         <button class="filter-btn filter-clear" id="filterClear">Clear</button>
         <button class="export-btn" id="exportTradesCSV">Export CSV</button>
@@ -163,6 +176,7 @@
               <th>#</th>
               <th>Entry Date</th>
               <th>Exit Date</th>
+              <th>Customer</th>
               <th>Scrip Name</th>
               <th>Type</th>
               <th>B/S</th>
@@ -171,6 +185,7 @@
               <th>P/L per unit</th>
               <th>Qty</th>
               <th>P/L Total</th>
+              <th>Net P/L</th>
               <th>% Returns</th>
               <th>Notes</th>
               <th>Action</th>

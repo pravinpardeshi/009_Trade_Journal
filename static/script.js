@@ -61,6 +61,8 @@ const tbody = document.getElementById("tradeTableBody");
 const loading = document.getElementById("loading");
 const filterFrom = document.getElementById("filter_from");
 const filterTo = document.getElementById("filter_to");
+const filterCustomer = document.getElementById("filter_customer");
+const filterSearch = document.getElementById("filter_search");
 
 const entryPrice = document.getElementById("entry_price");
 const exitPrice = document.getElementById("exit_price");
@@ -92,7 +94,8 @@ function setDefaultDates() {
 function getDirection() {
   const bs = document.getElementById("buy_sell").value;
   const ot = document.getElementById("option_type").value;
-  if (!bs || !ot) return null;
+  if (!bs) return null;
+  if (!ot || ot === "COM") return bs === "BUY" ? 1 : -1;
   return (bs === "BUY" && ot === "CE") || (bs === "SELL" && ot === "PE") ? 1 : -1;
 }
 
@@ -128,24 +131,48 @@ quantity.addEventListener("input", updatePreview);
 document.getElementById("buy_sell").addEventListener("change", updatePreview);
 document.getElementById("option_type").addEventListener("change", updatePreview);
 
+function populateCustomerList() {
+  fetch(API_BASE)
+    .then((res) => res.json())
+    .then((trades) => {
+      const customers = [...new Set(trades.map((t) => t.customer_name).filter(Boolean))];
+      const datalist = document.getElementById("customerList");
+      datalist.innerHTML = customers.map((c) => `<option value="${c}">`).join("");
+    })
+    .catch(() => {});
+}
+
 function getTrades() {
   loading.style.display = "block";
   const params = new URLSearchParams();
   if (filterFrom.value) params.set("from_date", filterFrom.value);
   if (filterTo.value) params.set("to_date", filterTo.value);
+  if (filterCustomer.value) params.set("customer", filterCustomer.value);
+  if (filterSearch.value) params.set("search", filterSearch.value);
   const url = params.toString() ? `${API_BASE}?${params}` : API_BASE;
   fetch(url)
     .then((res) => res.json())
     .then((trades) => {
       loading.style.display = "none";
       tbody.innerHTML = "";
+      let runningPL = 0;
+      let totalPL = 0;
+      let totalQty = 0;
+      let winCount = 0;
       trades.forEach((t, i) => {
         const isPLPositive = t.profit_loss_total >= 0;
+        runningPL += t.profit_loss_total;
+        runningPL = Math.round(runningPL * 100) / 100;
+        totalPL += t.profit_loss_total;
+        totalQty += t.quantity;
+        if (isPLPositive) winCount++;
+        const isRunningPositive = runningPL >= 0;
         const row = document.createElement("tr");
         row.innerHTML = `
           <td>${i + 1}</td>
           <td>${formatDate(t.entry_date)}</td>
           <td>${formatDate(t.exit_date)}</td>
+          <td>${t.customer_name || "--"}</td>
           <td>${t.scrip_name}</td>
           <td>${t.option_type}</td>
           <td>${t.buy_sell}</td>
@@ -154,6 +181,7 @@ function getTrades() {
           <td class="${isPLPositive ? "pl-positive" : "pl-negative"}">${t.profit_loss_per_unit.toFixed(2)}</td>
           <td>${t.quantity}</td>
           <td class="${isPLPositive ? "pl-positive" : "pl-negative"}">${t.profit_loss_total.toFixed(2)}</td>
+          <td class="${isRunningPositive ? "pl-positive" : "pl-negative"}">${runningPL.toFixed(2)}</td>
           <td class="${isPLPositive ? "pl-positive" : "pl-negative"}">${t.returns_percent.toFixed(2)}%</td>
           <td>${t.notes || "--"}</td>
           <td>
@@ -163,6 +191,24 @@ function getTrades() {
         `;
         tbody.appendChild(row);
       });
+
+      if (trades.length > 0) {
+        totalPL = Math.round(totalPL * 100) / 100;
+        const isTotalPositive = totalPL >= 0;
+        const winRate = ((winCount / trades.length) * 100).toFixed(1);
+        const totalRow = document.createElement("tr");
+        totalRow.className = "totals-row";
+        totalRow.innerHTML = `
+          <td colspan="3"><strong>TOTAL</strong></td>
+          <td colspan="2">${trades.length} trades</td>
+          <td colspan="2">${winCount}W / ${trades.length - winCount}L</td>
+          <td colspan="4">${winRate}%</td>
+          <td class="${isTotalPositive ? "pl-positive" : "pl-negative"}"><strong>${totalPL.toFixed(2)}</strong></td>
+          <td></td>
+          <td colspan="3"></td>
+        `;
+        tbody.appendChild(totalRow);
+      }
 
       document.querySelectorAll(".delete-btn").forEach((btn) => {
         btn.addEventListener("click", () => deleteTrade(btn.dataset.id));
@@ -184,6 +230,7 @@ form.addEventListener("submit", (e) => {
   const payload = {
     entry_date: document.getElementById("entry_date").value,
     exit_date: document.getElementById("exit_date").value,
+    customer_name: document.getElementById("customer_name").value || null,
     scrip_name: document.getElementById("scrip_name").value,
     option_type: document.getElementById("option_type").value,
     buy_sell: document.getElementById("buy_sell").value,
@@ -245,6 +292,7 @@ function editTrade(id) {
     .then((t) => {
       document.getElementById("entry_date").value = t.entry_date;
       document.getElementById("exit_date").value = t.exit_date;
+      document.getElementById("customer_name").value = t.customer_name || "";
       document.getElementById("scrip_name").value = t.scrip_name;
       document.getElementById("buy_sell").value = t.buy_sell;
       document.getElementById("option_type").value = t.option_type;
@@ -441,10 +489,10 @@ document.getElementById("exportTradesCSV").addEventListener("click", () => {
   fetch(url)
     .then((r) => r.json())
     .then((trades) => {
-      const headers = ["#", "Entry Date", "Exit Date", "Scrip Name", "Type", "B/S",
+      const headers = ["#", "Entry Date", "Exit Date", "Customer Name", "Scrip Name", "Type", "B/S",
         "Entry Price", "Exit Price", "P/L Per Unit", "Qty", "P/L Total", "% Returns", "Notes"];
       const rows = trades.map((t, i) => [
-        i + 1, t.entry_date, t.exit_date, t.scrip_name, t.option_type, t.buy_sell,
+        i + 1, t.entry_date, t.exit_date, t.customer_name || "", t.scrip_name, t.option_type, t.buy_sell,
         t.entry_price.toFixed(2), t.exit_price.toFixed(2),
         t.profit_loss_per_unit.toFixed(2), t.quantity,
         t.profit_loss_total.toFixed(2), t.returns_percent.toFixed(2), t.notes || ""
@@ -551,10 +599,15 @@ document.getElementById("filterApply").addEventListener("click", getTrades);
 document.getElementById("filterClear").addEventListener("click", () => {
   filterFrom.value = "";
   filterTo.value = "";
+  filterCustomer.value = "";
+  filterSearch.value = "";
   getTrades();
 });
 filterFrom.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
 filterTo.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
+filterCustomer.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
+filterSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
 
 setDefaultDates();
 getTrades();
+populateCustomerList();

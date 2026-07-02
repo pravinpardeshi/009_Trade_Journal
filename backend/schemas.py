@@ -7,11 +7,12 @@ class TradeCreate(BaseModel):
     entry_date: date
     exit_date: date
     scrip_name: str
-    option_type: str
+    option_type: Optional[str] = None
     buy_sell: str
     entry_price: float
     exit_price: float
     quantity: int
+    customer_name: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -20,7 +21,7 @@ class TradeResponse(BaseModel):
     entry_date: date
     exit_date: date
     scrip_name: str
-    option_type: str
+    option_type: Optional[str] = None
     buy_sell: str
     entry_price: float
     exit_price: float
@@ -28,6 +29,7 @@ class TradeResponse(BaseModel):
     quantity: int
     profit_loss_total: Optional[float] = None
     returns_percent: Optional[float] = None
+    customer_name: Optional[str] = None
     notes: Optional[str] = None
 
     model_config = {"from_attributes": True}

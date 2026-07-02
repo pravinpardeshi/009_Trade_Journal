@@ -158,7 +158,7 @@ def restore_database(file: UploadFile = File(...)):
 
 @app.post("/api/trades", response_model=TradeResponse)
 def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
-    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type == "CE") or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
+    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
     pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
     pl_total = round(pl_per_unit * trade.quantity, 2)
     returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
@@ -175,6 +175,7 @@ def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
         quantity=trade.quantity,
         profit_loss_total=pl_total,
         returns_percent=returns_pct,
+        customer_name=trade.customer_name,
         notes=trade.notes,
     )
     db.add(db_trade)
@@ -189,7 +190,7 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
     if not db_trade:
         raise HTTPException(status_code=404, detail="Trade not found")
 
-    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type == "CE") or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
+    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
     pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
     pl_total = round(pl_per_unit * trade.quantity, 2)
     returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
@@ -205,6 +206,7 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
     db_trade.quantity = trade.quantity
     db_trade.profit_loss_total = pl_total
     db_trade.returns_percent = returns_pct
+    db_trade.customer_name = trade.customer_name
     db_trade.notes = trade.notes
 
     db.commit()
@@ -216,6 +218,8 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
 def list_trades(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
+    customer: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     query = db.query(Trade)
@@ -223,6 +227,14 @@ def list_trades(
         query = query.filter(Trade.entry_date >= from_date)
     if to_date:
         query = query.filter(Trade.entry_date <= to_date)
+    if customer:
+        query = query.filter(Trade.customer_name.ilike(f"%{customer}%"))
+    if search:
+        query = query.filter(
+            Trade.scrip_name.ilike(f"%{search}%")
+            | Trade.notes.ilike(f"%{search}%")
+            | Trade.customer_name.ilike(f"%{search}%")
+        )
     return query.order_by(Trade.entry_date.desc()).all()
 
 
