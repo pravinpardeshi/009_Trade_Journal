@@ -95,7 +95,7 @@ function getDirection() {
   const bs = document.getElementById("buy_sell").value;
   const ot = document.getElementById("option_type").value;
   if (!bs) return null;
-  if (!ot || ot === "COM") return bs === "BUY" ? 1 : -1;
+  if (!ot || ot === "EQ" || ot === "COM" || ot === "FUT") return bs === "BUY" ? 1 : -1;
   return (bs === "BUY" && ot === "CE") || (bs === "SELL" && ot === "PE") ? 1 : -1;
 }
 
@@ -125,11 +125,31 @@ function updatePreview() {
   previewReturns.style.color = retPct >= 0 ? "#16a34a" : "#dc2626";
 }
 
+function autoDetectInstrument() {
+  const name = document.getElementById("scrip_name").value.toUpperCase().trim();
+  const sel = document.getElementById("option_type");
+  const opts = sel.options;
+  for (let o of opts) o.disabled = false;
+
+  if (/^(.*\s)?[A-Z0-9]+\s+FUT$/i.test(name) || /^[A-Z0-9]+FUT$/i.test(name.replace(/\s/g, ""))) {
+    sel.value = "FUT";
+    for (let o of opts) if (o.value && o.value !== "FUT") o.disabled = true;
+  } else if (/\s+CE$/i.test(name)) {
+    sel.value = "CE";
+    for (let o of opts) if (o.value && o.value !== "CE") o.disabled = true;
+  } else if (/\s+PE$/i.test(name)) {
+    sel.value = "PE";
+    for (let o of opts) if (o.value && o.value !== "PE") o.disabled = true;
+  }
+  updatePreview();
+}
+
 entryPrice.addEventListener("input", updatePreview);
 exitPrice.addEventListener("input", updatePreview);
 quantity.addEventListener("input", updatePreview);
 document.getElementById("buy_sell").addEventListener("change", updatePreview);
 document.getElementById("option_type").addEventListener("change", updatePreview);
+document.getElementById("scrip_name").addEventListener("input", autoDetectInstrument);
 
 function populateCustomerList() {
   fetch(API_BASE)
@@ -193,6 +213,10 @@ function getTrades() {
       });
 
       if (trades.length > 0) {
+        const spacer = document.createElement("tr");
+        spacer.className = "totals-spacer";
+        spacer.innerHTML = `<td colspan="16" style="height: 12px;"></td>`;
+        tbody.appendChild(spacer);
         totalPL = Math.round(totalPL * 100) / 100;
         const isTotalPositive = totalPL >= 0;
         const winRate = ((winCount / trades.length) * 100).toFixed(1);
@@ -201,8 +225,7 @@ function getTrades() {
         totalRow.innerHTML = `
           <td colspan="3"><strong>TOTAL</strong></td>
           <td colspan="2">${trades.length} trades</td>
-          <td colspan="2">${winCount}W / ${trades.length - winCount}L</td>
-          <td colspan="4">${winRate}%</td>
+          <td colspan="6">${winCount}W / ${trades.length - winCount}L (${winRate}%)</td>
           <td class="${isTotalPositive ? "pl-positive" : "pl-negative"}"><strong>${totalPL.toFixed(2)}</strong></td>
           <td></td>
           <td colspan="3"></td>
@@ -253,12 +276,16 @@ form.addEventListener("submit", (e) => {
       return res.json();
     })
     .then(() => {
+      const wasEditing = editingId;
       form.reset();
       setDefaultDates();
       updatePreview();
       getTrades();
       cancelEdit();
-      showToast(editingId ? "Trade updated successfully!" : "Trade saved successfully!", "success");
+      if (wasEditing) {
+        document.querySelector('.nav-item[data-section="history"]').click();
+      }
+      showToast(wasEditing ? "Trade updated successfully!" : "Trade saved successfully!", "success");
     })
     .catch((err) => { alert("Error: " + err.message); showToast("Failed to save trade", "error"); })
     .finally(() => {
@@ -303,6 +330,7 @@ function editTrade(id) {
       editingId = t.id;
       formSubmitBtn.textContent = "Update Trade";
       cancelEditBtn.style.display = "inline-block";
+      document.getElementById("entryTitle").textContent = "Edit Trade";
       updatePreview();
       document.querySelector('.nav-item[data-section="entry"]').click();
     });
@@ -313,6 +341,7 @@ function cancelEdit() {
   form.reset();
   setDefaultDates();
   updatePreview();
+  document.getElementById("entryTitle").textContent = "New Trade Entry";
   formSubmitBtn.textContent = "Save Trade";
   cancelEditBtn.style.display = "none";
 }
@@ -605,8 +634,8 @@ document.getElementById("filterClear").addEventListener("click", () => {
 });
 filterFrom.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
 filterTo.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
-filterCustomer.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
-filterSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
+filterCustomer.addEventListener("input", getTrades);
+filterSearch.addEventListener("input", getTrades);
 
 setDefaultDates();
 getTrades();

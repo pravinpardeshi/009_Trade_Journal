@@ -25,3 +25,4 @@ CREATE TABLE IF NOT EXISTS trades (
 -- If upgrading an existing database, run:
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS option_type VARCHAR(10);
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);
+-- ALTER TABLE trades ALTER COLUMN option_type DROP NOT NULL;  -- allow equity/commodity entries

@@ -45,7 +45,7 @@
   <main class="main-content" id="mainContent">
     <!-- Entry Form Section -->
     <section class="content-section active" id="section-entry">
-      <h1>New Trade Entry</h1>
+      <h1 id="entryTitle">New Trade Entry</h1>
       <form id="tradeForm">
         <div class="form-grid">
           <div class="form-group">
@@ -76,7 +76,9 @@
           <div class="form-group">
             <label for="option_type">Instrument</label>
             <select id="option_type">
-              <option value="">-- Equity / Commodity --</option>
+              <option value="EQ">Equity</option>
+              <option value="COM">Commodity</option>
+              <option value="FUT">Futures</option>
               <option value="CE">CE (Call Option)</option>
               <option value="PE">PE (Put Option)</option>
             </select>

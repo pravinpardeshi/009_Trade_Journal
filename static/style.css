@@ -508,11 +508,13 @@ button[type="submit"]:disabled {
   font-weight: 600;
 }
 
-#reportTable .totals-row td {
+#reportTable .totals-row td,
+#tradeTable .totals-row td {
   border-top: 2px solid var(--totals-border);
   font-weight: 700;
-  background: var(--bg-totals);
+  background: #d4edda;
   padding: 0.85rem 1rem;
+  font-size: 1.15rem;
 }
 
 /* =============================================
@@ -647,10 +649,12 @@ button[type="submit"]:disabled {
   background: var(--text-muted);
   color: var(--bg-primary);
   border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
+  padding: 0.85rem 2.5rem;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 1.05rem;
+  margin-top: 1.25rem;
 }
 #cancelEditBtn:hover {
   opacity: 0.85;

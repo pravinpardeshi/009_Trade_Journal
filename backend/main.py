@@ -158,7 +158,7 @@ def restore_database(file: UploadFile = File(...)):
 
 @app.post("/api/trades", response_model=TradeResponse)
 def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
-    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
+    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", "EQ", "COM", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
     pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
     pl_total = round(pl_per_unit * trade.quantity, 2)
     returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
@@ -190,7 +190,7 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
     if not db_trade:
         raise HTTPException(status_code=404, detail="Trade not found")
 
-    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
+    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", "EQ", "COM", "FUT", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
     pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
     pl_total = round(pl_per_unit * trade.quantity, 2)
     returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
