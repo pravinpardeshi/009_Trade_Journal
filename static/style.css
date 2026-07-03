@@ -200,7 +200,7 @@ body {
   border: none;
   border-radius: 8px;
   color: var(--text-sidebar);
-  font-size: 1.05rem;
+  font-size: 1.2rem;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
@@ -506,6 +506,24 @@ button[type="submit"]:disabled {
 
 .report-period {
   font-weight: 600;
+}
+
+.win-rate {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.open-trade {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.open-row {
+  background: #fff3cd !important;
+}
+
+[data-theme="dark"] .open-row {
+  background: #3d3a1e !important;
 }
 
 #reportTable .totals-row td,

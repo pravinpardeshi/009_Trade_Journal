@@ -29,6 +29,10 @@
         <span class="nav-icon">📋</span>
         <span class="nav-text">Trade History</span>
       </button>
+      <button class="nav-item" data-section="customer-report">
+        <span class="nav-icon">👤</span>
+        <span class="nav-text">Customer Report</span>
+      </button>
       <button class="nav-item nav-backup" id="navBackup" data-section="backup">
         <span class="nav-icon">💾</span>
         <span class="nav-text">Backup DB</span>
@@ -53,8 +57,8 @@
             <input type="date" id="entry_date" required>
           </div>
           <div class="form-group">
-            <label for="exit_date">Exit Date</label>
-            <input type="date" id="exit_date" required>
+            <label for="exit_date">Exit Date <span class="optional">(open if blank)</span></label>
+            <input type="date" id="exit_date">
           </div>
           <div class="form-group">
             <label for="customer_name">Customer Name</label>
@@ -88,8 +92,8 @@
             <input type="number" id="entry_price" step="0.01" placeholder="e.g. 145.90" required>
           </div>
           <div class="form-group">
-            <label for="exit_price">Exit Price</label>
-            <input type="number" id="exit_price" step="0.01" placeholder="e.g. 160.25" required>
+            <label for="exit_price">Exit Price <span class="optional">(open if blank)</span></label>
+            <input type="number" id="exit_price" step="0.01" placeholder="e.g. 160.25">
           </div>
           <div class="form-group">
             <label for="quantity">Quantity</label>
@@ -195,6 +199,53 @@
           </thead>
           <tbody id="tradeTableBody"></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- Customer Report Section -->
+    <section class="content-section" id="section-customer-report">
+      <h1>Customer Report</h1>
+      <div class="report-actions">
+        <div class="filter-group">
+          <label for="reportCustomer">Customer</label>
+          <select id="reportCustomer" style="padding: 0.65rem 1.3rem; border: 1px solid var(--border-input); border-radius: 8px; font-size: 0.95rem; background: var(--bg-input); color: var(--text-primary);">
+            <option value="">-- Select Customer --</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="reportFormat">Format</label>
+          <select id="reportFormat" style="padding: 0.65rem 1.3rem; border: 1px solid var(--border-input); border-radius: 8px; font-size: 0.95rem; background: var(--bg-input); color: var(--text-primary);">
+            <option value="csv">CSV</option>
+            <option value="pdf">PDF</option>
+          </select>
+        </div>
+        <button class="report-btn" id="generateCustomerReport" style="align-self: flex-end;">Generate Report</button>
+      </div>
+      <div id="customerReportContainer" style="display: none; background: var(--bg-card); border-radius: 12px; box-shadow: 0 2px 12px var(--shadow-card); padding: 1.5rem;">
+        <h3 id="customerReportTitle">Customer Report</h3>
+        <div class="table-wrapper">
+          <table id="customerReportTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Entry Date</th>
+                <th>Exit Date</th>
+                <th>Scrip Name</th>
+                <th>Type</th>
+                <th>B/S</th>
+                <th>Entry Price</th>
+                <th>Exit Price</th>
+                <th>P/L per unit</th>
+                <th>Qty</th>
+                <th>P/L Total</th>
+                <th>% Returns</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="customerReportBody"></tbody>
+          </table>
+        </div>
       </div>
     </section>
 

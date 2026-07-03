@@ -88,7 +88,7 @@ function setDefaultDates() {
   const dd = String(d.getDate()).padStart(2, "0");
   const today = `${yyyy}-${mm}-${dd}`;
   document.getElementById("entry_date").value = today;
-  document.getElementById("exit_date").value = today;
+  document.getElementById("exit_date").value = "";
 }
 
 function getDirection() {
@@ -105,7 +105,7 @@ function updatePreview() {
   const qty = parseInt(quantity.value, 10);
   const dir = getDirection();
 
-  if (isNaN(ep) || isNaN(xp) || isNaN(qty) || qty <= 0 || dir === null) {
+  if (isNaN(ep) || isNaN(qty) || qty <= 0 || dir === null || isNaN(xp)) {
     previewPLPerUnit.textContent = "--";
     previewPLTotal.textContent = "--";
     previewReturns.textContent = "--";
@@ -180,29 +180,37 @@ function getTrades() {
       let totalQty = 0;
       let winCount = 0;
       trades.forEach((t, i) => {
-        const isPLPositive = t.profit_loss_total >= 0;
-        runningPL += t.profit_loss_total;
-        runningPL = Math.round(runningPL * 100) / 100;
-        totalPL += t.profit_loss_total;
+        const hasPL = t.profit_loss_total != null;
+        const isPLPositive = hasPL && t.profit_loss_total >= 0;
+        if (hasPL) {
+          runningPL += t.profit_loss_total;
+          runningPL = Math.round(runningPL * 100) / 100;
+          totalPL += t.profit_loss_total;
+          if (isPLPositive) winCount++;
+        }
         totalQty += t.quantity;
-        if (isPLPositive) winCount++;
+        const isOpen = t.exit_date == null || t.exit_price == null;
         const isRunningPositive = runningPL >= 0;
         const row = document.createElement("tr");
+        if (isOpen) row.classList.add("open-row");
+        row.dataset.id = t.id;
+        row.style.cursor = "pointer";
+        row.addEventListener("dblclick", () => editTrade(t.id));
         row.innerHTML = `
           <td>${i + 1}</td>
           <td>${formatDate(t.entry_date)}</td>
-          <td>${formatDate(t.exit_date)}</td>
+          <td>${t.exit_date ? formatDate(t.exit_date) : '<span class="open-trade">Open</span>'}</td>
           <td>${t.customer_name || "--"}</td>
           <td>${t.scrip_name}</td>
-          <td>${t.option_type}</td>
+          <td>${t.option_type || "--"}</td>
           <td>${t.buy_sell}</td>
           <td>${t.entry_price.toFixed(2)}</td>
-          <td>${t.exit_price.toFixed(2)}</td>
-          <td class="${isPLPositive ? "pl-positive" : "pl-negative"}">${t.profit_loss_per_unit.toFixed(2)}</td>
+          <td>${t.exit_price != null ? t.exit_price.toFixed(2) : '<span class="open-trade">--</span>'}</td>
+          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "--"}</td>
           <td>${t.quantity}</td>
-          <td class="${isPLPositive ? "pl-positive" : "pl-negative"}">${t.profit_loss_total.toFixed(2)}</td>
+          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "--"}</td>
           <td class="${isRunningPositive ? "pl-positive" : "pl-negative"}">${runningPL.toFixed(2)}</td>
-          <td class="${isPLPositive ? "pl-positive" : "pl-negative"}">${t.returns_percent.toFixed(2)}%</td>
+          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.returns_percent != null ? t.returns_percent.toFixed(2) + "%" : "--"}</td>
           <td>${t.notes || "--"}</td>
           <td>
             <button class="edit-btn" data-id="${t.id}">Edit</button>
@@ -225,7 +233,7 @@ function getTrades() {
         totalRow.innerHTML = `
           <td colspan="3"><strong>TOTAL</strong></td>
           <td colspan="2">${trades.length} trades</td>
-          <td colspan="6">${winCount}W / ${trades.length - winCount}L (${winRate}%)</td>
+          <td colspan="6">${winCount}W / ${trades.length - winCount}L (<span class="win-rate"><i>Win Ratio: </i>${winRate}%</span>)</td>
           <td class="${isTotalPositive ? "pl-positive" : "pl-negative"}"><strong>${totalPL.toFixed(2)}</strong></td>
           <td></td>
           <td colspan="3"></td>
@@ -251,14 +259,14 @@ form.addEventListener("submit", (e) => {
   btn.disabled = true;
 
   const payload = {
-    entry_date: document.getElementById("entry_date").value,
-    exit_date: document.getElementById("exit_date").value,
+    entry_date: document.getElementById("entry_date").value || null,
+    exit_date: document.getElementById("exit_date").value || null,
     customer_name: document.getElementById("customer_name").value || null,
     scrip_name: document.getElementById("scrip_name").value,
-    option_type: document.getElementById("option_type").value,
+    option_type: document.getElementById("option_type").value || null,
     buy_sell: document.getElementById("buy_sell").value,
     entry_price: parseFloat(entryPrice.value),
-    exit_price: parseFloat(exitPrice.value),
+    exit_price: exitPrice.value ? parseFloat(exitPrice.value) : null,
     quantity: parseInt(quantity.value, 10),
     notes: document.getElementById("notes").value || null,
   };
@@ -318,13 +326,13 @@ function editTrade(id) {
     .then((r) => r.json())
     .then((t) => {
       document.getElementById("entry_date").value = t.entry_date;
-      document.getElementById("exit_date").value = t.exit_date;
+      document.getElementById("exit_date").value = t.exit_date || "";
       document.getElementById("customer_name").value = t.customer_name || "";
       document.getElementById("scrip_name").value = t.scrip_name;
       document.getElementById("buy_sell").value = t.buy_sell;
-      document.getElementById("option_type").value = t.option_type;
+      document.getElementById("option_type").value = t.option_type || "";
       entryPrice.value = t.entry_price;
-      exitPrice.value = t.exit_price;
+      exitPrice.value = t.exit_price != null ? t.exit_price : "";
       quantity.value = t.quantity;
       document.getElementById("notes").value = t.notes || "";
       editingId = t.id;
@@ -344,6 +352,7 @@ function cancelEdit() {
   document.getElementById("entryTitle").textContent = "New Trade Entry";
   formSubmitBtn.textContent = "Save Trade";
   cancelEditBtn.style.display = "none";
+  document.querySelector('.nav-item[data-section="history"]').click();
 }
 
 cancelEditBtn.addEventListener("click", cancelEdit);
@@ -434,6 +443,125 @@ reportBtns.forEach((btn) => {
   btn.addEventListener("click", () => loadReport(btn.dataset.report));
 });
 
+// ---- Customer Report ----
+const reportCustomerSel = document.getElementById("reportCustomer");
+const reportFormatSel = document.getElementById("reportFormat");
+const custReportContainer = document.getElementById("customerReportContainer");
+const custReportBody = document.getElementById("customerReportBody");
+const custReportTitle = document.getElementById("customerReportTitle");
+
+function populateCustomerReportList() {
+  fetch("/api/customers")
+    .then((r) => r.json())
+    .then((customers) => {
+      reportCustomerSel.innerHTML = '<option value="all">All Customers</option>' +
+        '<option value="">-- Select Customer --</option>' +
+        customers.map((c) => `<option value="${c}">${c}</option>`).join("");
+    })
+    .catch(() => {});
+}
+
+document.getElementById("generateCustomerReport").addEventListener("click", () => {
+  const customer = reportCustomerSel.value;
+  if (!customer) { showToast("Please select a customer", "error"); return; }
+
+  const url = customer === "all" ? API_BASE : `/api/trades?customer=${encodeURIComponent(customer)}`;
+  const reportLabel = customer === "all" ? "All Customers" : customer;
+
+  fetch(url)
+    .then((r) => r.json())
+    .then((trades) => {
+      if (trades.length === 0) {
+        showToast("No trades found", "error");
+        custReportContainer.style.display = "none";
+        return;
+      }
+
+      custReportTitle.textContent = `Report: ${reportLabel}`;
+      custReportBody.innerHTML = "";
+      let totalPL = 0, wins = 0;
+      trades.forEach((t, i) => {
+        const hasPL = t.profit_loss_total != null;
+        if (hasPL) {
+          if (t.profit_loss_total >= 0) wins++;
+          totalPL += t.profit_loss_total;
+        }
+        const isPLPositive = hasPL && t.profit_loss_total >= 0;
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${t.customer_name || "--"}</td>
+          <td>${formatDate(t.entry_date)}</td>
+          <td>${t.exit_date ? formatDate(t.exit_date) : '<span class="open-trade">Open</span>'}</td>
+          <td>${t.scrip_name}</td>
+          <td>${t.option_type || "--"}</td>
+          <td>${t.buy_sell}</td>
+          <td>${t.entry_price.toFixed(2)}</td>
+          <td>${t.exit_price != null ? t.exit_price.toFixed(2) : '<span class="open-trade">--</span>'}</td>
+          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "--"}</td>
+          <td>${t.quantity}</td>
+          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "--"}</td>
+          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.returns_percent != null ? t.returns_percent.toFixed(2) + "%" : "--"}</td>
+          <td>${t.notes || "--"}</td>
+        `;
+        custReportBody.appendChild(row);
+      });
+
+      const isTotalPositive = totalPL >= 0;
+      const winRate = trades.length > 0 ? ((wins / trades.length) * 100).toFixed(1) : "0.0";
+      const tr = document.createElement("tr");
+      tr.className = "totals-row";
+      const colSpan = customer === "all" ? 3 : 3;
+      tr.innerHTML = `
+        <td colspan="3"><strong>TOTAL</strong></td>
+        <td colspan="2">${trades.length} trades</td>
+        <td colspan="2">${wins}W / ${trades.length - wins}L (${winRate}%)</td>
+        <td colspan="3"></td>
+        <td class="${isTotalPositive ? "pl-positive" : "pl-negative"}"><strong>${totalPL.toFixed(2)}</strong></td>
+        <td colspan="3"></td>
+      `;
+      custReportBody.appendChild(tr);
+
+      custReportContainer.style.display = "block";
+
+      const format = reportFormatSel.value;
+      const filename = `Customer_Report_${reportLabel.replace(/\s+/g, "_")}`;
+      if (format === "csv") {
+        exportTableToCSV("#customerReportTable", filename);
+      } else {
+        exportTableToPDF("#customerReportTable", `Report: ${reportLabel}`, `${filename}.pdf`);
+      }
+    })
+    .catch(() => showToast("Failed to load customer trades", "error"));
+});
+
+function exportTableToCSV(selector, filename) {
+  const table = document.querySelector(selector);
+  if (!table || table.querySelectorAll("tbody tr").length === 0) {
+    showToast("No data to export", "error");
+    return;
+  }
+  const headers = [];
+  table.querySelectorAll("thead th").forEach((th) => headers.push(th.textContent.trim()));
+  const rows = [];
+  table.querySelectorAll("tbody tr").forEach((tr) => {
+    const row = [];
+    tr.querySelectorAll("td").forEach((td) => row.push(toCsvValue(td.textContent.trim())));
+    if (row.length) rows.push(row.join(","));
+  });
+  const csv = [headers.join(","), ...rows].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${filename}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast("CSV downloaded", "success");
+}
+
 // ---- PDF Export ----
 function exportTableToPDF(selector, title, filename, colStyles) {
   if (typeof window.jspdf === "undefined" || typeof window.jspdf.jsPDF !== "function") {
@@ -513,6 +641,8 @@ document.getElementById("exportTradesCSV").addEventListener("click", () => {
   const params = new URLSearchParams();
   if (filterFrom.value) params.set("from_date", filterFrom.value);
   if (filterTo.value) params.set("to_date", filterTo.value);
+  if (filterCustomer.value) params.set("customer", filterCustomer.value);
+  if (filterSearch.value) params.set("search", filterSearch.value);
   const url = params.toString() ? `${API_BASE}?${params}` : API_BASE;
 
   fetch(url)
@@ -521,10 +651,10 @@ document.getElementById("exportTradesCSV").addEventListener("click", () => {
       const headers = ["#", "Entry Date", "Exit Date", "Customer Name", "Scrip Name", "Type", "B/S",
         "Entry Price", "Exit Price", "P/L Per Unit", "Qty", "P/L Total", "% Returns", "Notes"];
       const rows = trades.map((t, i) => [
-        i + 1, t.entry_date, t.exit_date, t.customer_name || "", t.scrip_name, t.option_type, t.buy_sell,
-        t.entry_price.toFixed(2), t.exit_price.toFixed(2),
-        t.profit_loss_per_unit.toFixed(2), t.quantity,
-        t.profit_loss_total.toFixed(2), t.returns_percent.toFixed(2), t.notes || ""
+        i + 1, t.entry_date, t.exit_date || "", t.customer_name || "", t.scrip_name, t.option_type || "", t.buy_sell,
+        t.entry_price.toFixed(2), t.exit_price != null ? t.exit_price.toFixed(2) : "",
+        t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "", t.quantity,
+        t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "", t.returns_percent != null ? t.returns_percent.toFixed(2) + "%" : "", t.notes || ""
       ].map(toCsvValue));
       const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
@@ -640,3 +770,4 @@ filterSearch.addEventListener("input", getTrades);
 setDefaultDates();
 getTrades();
 populateCustomerList();
+populateCustomerReportList();

@@ -5,12 +5,12 @@ from typing import Optional
 
 class TradeCreate(BaseModel):
     entry_date: date
-    exit_date: date
+    exit_date: Optional[date] = None
     scrip_name: str
     option_type: Optional[str] = None
     buy_sell: str
     entry_price: float
-    exit_price: float
+    exit_price: Optional[float] = None
     quantity: int
     customer_name: Optional[str] = None
     notes: Optional[str] = None
@@ -19,12 +19,12 @@ class TradeCreate(BaseModel):
 class TradeResponse(BaseModel):
     id: int
     entry_date: date
-    exit_date: date
+    exit_date: Optional[date] = None
     scrip_name: str
     option_type: Optional[str] = None
     buy_sell: str
     entry_price: float
-    exit_price: float
+    exit_price: Optional[float] = None
     profit_loss_per_unit: Optional[float] = None
     quantity: int
     profit_loss_total: Optional[float] = None

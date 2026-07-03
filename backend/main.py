@@ -159,9 +159,14 @@ def restore_database(file: UploadFile = File(...)):
 @app.post("/api/trades", response_model=TradeResponse)
 def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
     direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", "EQ", "COM", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
-    pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
-    pl_total = round(pl_per_unit * trade.quantity, 2)
-    returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
+    if trade.exit_price is not None:
+        pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
+        pl_total = round(pl_per_unit * trade.quantity, 2)
+        returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
+    else:
+        pl_per_unit = None
+        pl_total = None
+        returns_pct = None
 
     db_trade = Trade(
         entry_date=trade.entry_date,
@@ -191,9 +196,14 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
         raise HTTPException(status_code=404, detail="Trade not found")
 
     direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", "EQ", "COM", "FUT", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
-    pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
-    pl_total = round(pl_per_unit * trade.quantity, 2)
-    returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
+    if trade.exit_price is not None:
+        pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
+        pl_total = round(pl_per_unit * trade.quantity, 2)
+        returns_pct = round((pl_per_unit / trade.entry_price) * 100, 2)
+    else:
+        pl_per_unit = None
+        pl_total = None
+        returns_pct = None
 
     db_trade.entry_date = trade.entry_date
     db_trade.exit_date = trade.exit_date
@@ -244,6 +254,12 @@ def get_trade(trade_id: int, db: Session = Depends(get_db)):
     if not trade:
         raise HTTPException(status_code=404, detail="Trade not found")
     return trade
+
+
+@app.get("/api/customers")
+def list_customers(db: Session = Depends(get_db)):
+    customers = db.query(Trade.customer_name).filter(Trade.customer_name.isnot(None)).filter(Trade.customer_name != "").distinct().order_by(Trade.customer_name).all()
+    return [c[0] for c in customers]
 
 
 @app.delete("/api/trades/{trade_id}", status_code=204)
