@@ -262,6 +262,64 @@ def list_customers(db: Session = Depends(get_db)):
     return [c[0] for c in customers]
 
 
+@app.get("/api/reports/summary")
+def get_summary_report(db: Session = Depends(get_db)):
+    trades = db.query(Trade).all()
+
+    summary = {}
+    for t in trades:
+        scrip = t.scrip_name
+        if scrip not in summary:
+            summary[scrip] = {
+                "scrip_name": scrip,
+                "customer_name": t.customer_name or "",
+                "long_prices": [],
+                "short_prices": [],
+                "long_exit_prices": [],
+                "short_exit_prices": [],
+                "long_qty": 0,
+                "short_qty": 0,
+                "realized_pl": 0.0,
+            }
+
+        entry = summary[scrip]
+        qty = t.quantity or 1
+
+        if t.buy_sell == "BUY":
+            entry["long_prices"].append((t.entry_price or 0) * qty)
+            entry["long_qty"] += qty
+            if t.exit_price is not None:
+                entry["long_exit_prices"].append(t.exit_price)
+                entry["realized_pl"] += t.profit_loss_total or 0
+        else:
+            entry["short_prices"].append((t.entry_price or 0) * qty)
+            entry["short_qty"] += qty
+            if t.exit_price is not None:
+                entry["short_exit_prices"].append(t.exit_price)
+                entry["realized_pl"] += t.profit_loss_total or 0
+
+    result = []
+    for scrip, entry in summary.items():
+        avg_long = sum(entry["long_prices"]) / entry["long_qty"] if entry["long_qty"] > 0 else 0
+        avg_short = sum(entry["short_prices"]) / entry["short_qty"] if entry["short_qty"] > 0 else 0
+
+        long_exits = ", ".join([f"{p:.2f}" for p in entry["long_exit_prices"]]) if entry["long_exit_prices"] else "--"
+        short_exits = ", ".join([f"{p:.2f}" for p in entry["short_exit_prices"]]) if entry["short_exit_prices"] else "--"
+
+        result.append({
+            "scrip_name": entry["scrip_name"],
+            "customer_name": entry["customer_name"],
+            "avg_long_price": round(avg_long, 2),
+            "avg_short_price": round(avg_short, 2),
+            "long_exit_prices": long_exits,
+            "short_exit_prices": short_exits,
+            "realized_pl": round(entry["realized_pl"], 2),
+        })
+
+    result.sort(key=lambda x: x["scrip_name"])
+    return result
+
+
 @app.delete("/api/trades/{trade_id}", status_code=204)
 def delete_trade(trade_id: int, db: Session = Depends(get_db)):
     trade = db.query(Trade).filter(Trade.id == trade_id).first()

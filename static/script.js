@@ -199,13 +199,13 @@ function getTrades() {
         row.innerHTML = `
           <td>${i + 1}</td>
           <td>${formatDate(t.entry_date)}</td>
-          <td>${t.exit_date ? formatDate(t.exit_date) : '<span class="open-trade">Open</span>'}</td>
+          <td class="${t.exit_date == null ? 'null-field' : ''}">${t.exit_date ? formatDate(t.exit_date) : '--'}</td>
           <td>${t.customer_name || "--"}</td>
           <td>${t.scrip_name}</td>
           <td>${t.option_type || "--"}</td>
           <td>${t.buy_sell}</td>
           <td>${t.entry_price.toFixed(2)}</td>
-          <td>${t.exit_price != null ? t.exit_price.toFixed(2) : '<span class="open-trade">--</span>'}</td>
+          <td class="${t.exit_price == null ? 'null-field' : ''}">${t.exit_price != null ? t.exit_price.toFixed(2) : '--'}</td>
           <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "--"}</td>
           <td>${t.quantity}</td>
           <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "--"}</td>
@@ -361,7 +361,7 @@ cancelEditBtn.addEventListener("click", cancelEdit);
 const reportContainer = document.getElementById("reportContainer");
 const reportTitle = document.getElementById("reportTitle");
 const reportBody = document.getElementById("reportTableBody");
-const reportBtns = document.querySelectorAll(".report-btn");
+const reportBtns = document.querySelectorAll(".report-btn[data-report]");
 
 function formatPeriod(period) {
   if (/^\d{4}-W\d{2}$/.test(period)) {
@@ -377,10 +377,51 @@ function formatPeriod(period) {
 }
 
 function loadReport(type) {
+  reportBtns.forEach(b => b.classList.toggle("active", b.dataset.report === type));
+
+  const customerFiltersRow = document.getElementById("customerReportFiltersRow");
+  const generateBtn = document.getElementById("generateCustomerReport");
+  const exportPDFBtn = document.getElementById("exportReportPDF");
+
+  if (type === "customer") {
+    reportContainer.style.display = "none";
+    custReportContainer.style.display = "block";
+    customerFiltersRow.style.display = "flex";
+    generateBtn.style.display = "inline-block";
+    exportPDFBtn.style.display = "none";
+    populateCustomerReportList();
+    return;
+  }
+
+  if (type === "summary") {
+    reportContainer.style.display = "block";
+    custReportContainer.style.display = "none";
+    customerFiltersRow.style.display = "none";
+    generateBtn.style.display = "none";
+    exportPDFBtn.style.display = "none";
+    loadSummaryReport();
+    return;
+  }
+
+  reportContainer.style.display = "block";
+  custReportContainer.style.display = "none";
+  customerFiltersRow.style.display = "none";
+  generateBtn.style.display = "none";
+  exportPDFBtn.style.display = "inline-block";
+
+  reportTable.querySelector("thead tr").innerHTML = `
+    <th>Period</th>
+    <th class="num">Trades</th>
+    <th class="num">Wins</th>
+    <th class="num">Losses</th>
+    <th class="num">Win Rate</th>
+    <th class="num">Total P/L</th>
+    <th class="num">Return %</th>
+    <th class="num">Total Qty</th>
+  `;
+
   reportTitle.textContent = type === "weekly" ? "Weekly Report" : "Monthly Report";
   reportBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#888;">Loading...</td></tr>';
-
-  reportBtns.forEach(b => b.classList.toggle("active", b.dataset.report === type));
 
   fetch(`/api/reports/${type}`)
     .then((r) => r.json())
@@ -492,12 +533,12 @@ document.getElementById("generateCustomerReport").addEventListener("click", () =
           <td>${i + 1}</td>
           <td>${t.customer_name || "--"}</td>
           <td>${formatDate(t.entry_date)}</td>
-          <td>${t.exit_date ? formatDate(t.exit_date) : '<span class="open-trade">Open</span>'}</td>
+          <td class="${t.exit_date == null ? 'null-field' : ''}">${t.exit_date ? formatDate(t.exit_date) : '--'}</td>
           <td>${t.scrip_name}</td>
           <td>${t.option_type || "--"}</td>
           <td>${t.buy_sell}</td>
           <td>${t.entry_price.toFixed(2)}</td>
-          <td>${t.exit_price != null ? t.exit_price.toFixed(2) : '<span class="open-trade">--</span>'}</td>
+          <td class="${t.exit_price == null ? 'null-field' : ''}">${t.exit_price != null ? t.exit_price.toFixed(2) : '--'}</td>
           <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "--"}</td>
           <td>${t.quantity}</td>
           <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "--"}</td>
@@ -766,6 +807,65 @@ filterFrom.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades
 filterTo.addEventListener("keydown", (e) => { if (e.key === "Enter") getTrades(); });
 filterCustomer.addEventListener("input", getTrades);
 filterSearch.addEventListener("input", getTrades);
+
+function loadSummaryReport() {
+  reportTitle.textContent = "Summary";
+  reportTable.querySelector("thead tr").innerHTML = `
+    <th>#</th>
+    <th>Scrip</th>
+    <th>Customer</th>
+    <th class="num">Avg Long</th>
+    <th class="num">Avg Short</th>
+    <th>Long Exits</th>
+    <th>Short Exits</th>
+    <th class="num">Realized P/L</th>
+  `;
+  reportBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#888;">Loading...</td></tr>';
+
+  fetch("/api/reports/summary")
+    .then((r) => r.json())
+    .then((rows) => {
+      reportBody.innerHTML = "";
+      if (rows.length === 0) {
+        reportBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#888;">No trades found.</td></tr>';
+        return;
+      }
+
+      let totalPL = 0;
+
+      rows.forEach((r, i) => {
+        totalPL += r.realized_pl;
+        const isPLPositive = r.realized_pl >= 0;
+        const plClass = r.realized_pl !== 0 ? (isPLPositive ? "pl-positive" : "pl-negative") : "";
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${i + 1}</td>
+          <td>${r.scrip_name}</td>
+          <td>${r.customer_name || "--"}</td>
+          <td class="num">${r.avg_long_price > 0 ? r.avg_long_price.toFixed(2) : "--"}</td>
+          <td class="num">${r.avg_short_price > 0 ? r.avg_short_price.toFixed(2) : "--"}</td>
+          <td>${r.long_exit_prices}</td>
+          <td>${r.short_exit_prices}</td>
+          <td class="${plClass}">${r.realized_pl.toFixed(2)}</td>
+        `;
+        reportBody.appendChild(tr);
+      });
+
+      const totalTr = document.createElement("tr");
+      totalTr.classList.add("totals-row");
+      const totalPLClass = totalPL >= 0 ? "pl-positive" : "pl-negative";
+      totalTr.innerHTML = `
+        <td colspan="7" style="text-align: right;"><strong>TOTAL P/L</strong></td>
+        <td class="${totalPLClass}"><strong>${totalPL.toFixed(2)}</strong></td>
+      `;
+      reportBody.appendChild(totalTr);
+    })
+    .catch((err) => {
+      console.error("Summary report error:", err);
+      reportBody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#dc2626;">Error loading summary.</td></tr>';
+    });
+}
 
 setDefaultDates();
 getTrades();
