@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 
@@ -31,6 +31,8 @@ class TradeResponse(BaseModel):
     returns_percent: Optional[float] = None
     customer_name: Optional[str] = None
     notes: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 

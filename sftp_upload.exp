@@ -1,0 +1,89 @@
+#!/usr/bin/expect -f
+
+# -----------------------------
+# CONFIGURATION
+# -----------------------------
+set timeout 20
+
+set host "100.71.5.98"
+set user "pravin"
+set password "smita"
+
+set local_path "/home/pravin/opencode_projects/010_reporting_app"
+set remote_path "/home/pravin/000*/001*"
+
+# -----------------------------
+# CHECK IF SERVER IS UP
+# -----------------------------
+# -----------------------------
+# CHECK IF SERVER IS UP (SAFE VERSION)
+# -----------------------------
+puts "Checking if server is reachable..."
+
+set ping_cmd "ping -c 2 $host"
+
+if {[catch {exec sh -c $ping_cmd} ping_output]} {
+    puts "\n❌ SERVER CHECK FAILED"
+    puts "Host: $host is not reachable."
+    puts "Reason: No network response or host is down."
+    puts "Details:\n$ping_output"
+    exit 1
+}
+
+# Optional: detect packet loss explicitly
+if {[string match "*100% packet loss*" $ping_output]} {
+    puts "\n❌ SERVER IS DOWN"
+    puts "Host: $host did not respond to ICMP ping."
+    puts "Ping output:"
+    puts $ping_output
+    exit 1
+}
+
+puts "\n✅ Server is reachable. Proceeding with SFTP upload..."
+
+# -----------------------------
+# START SFTP SESSION
+# -----------------------------
+spawn sftp -o StrictHostKeyChecking=no $user@$host
+
+expect {
+    "password:" {
+        send "$password\r"
+    }
+    "yes/no" {
+        send "yes\r"
+        exp_continue
+    }
+}
+
+# -----------------------------
+# NAVIGATE REMOTE PATH
+# -----------------------------
+expect "sftp>"
+send "cd $remote_path\r"
+expect "sftp>"
+
+# -----------------------------
+# UPLOAD FILES
+# -----------------------------
+
+# Upload single files
+send "put -r $local_path\r"
+
+# Wait for completion
+expect {
+    "sftp>" {}
+    timeout {
+        puts "ERROR: Upload timed out."
+        exit 1
+    }
+}
+
+# -----------------------------
+# EXIT
+# -----------------------------
+send "bye\r"
+expect eof
+
+puts "Upload completed successfully."
+

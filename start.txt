@@ -1,0 +1,19 @@
+Created tradejournal.service. To install and use:
+# Copy to systemd directory
+sudo cp /home/pravin/opencode_projects/010_reporting_app/tradejournal.service /etc/systemd/system/
+
+# Enable and start
+sudo systemctl daemon-reload
+sudo systemctl enable tradejournal
+sudo systemctl start tradejournal
+
+# Check status
+sudo systemctl status tradejournal
+
+# View logs
+sudo journalctl -u tradejournal -f
+
+# Stop/restart
+sudo systemctl stop tradejournal
+sudo systemctl restart tradejournal
+

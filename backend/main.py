@@ -1,5 +1,6 @@
+import os
 import subprocess
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -8,10 +9,11 @@ from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, case
+from sqlalchemy import func, case, literal_column
 from sqlalchemy.orm import Session
 
-from database import DATABASE_URL, engine, Base, get_db
+from database import engine, Base, get_db
+from config import DB_TYPE, DATABASE_URL, DB_PATH
 from models import Trade
 from schemas import TradeCreate, TradeResponse, ReportRow
 
@@ -31,6 +33,11 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
+@app.get("/api/config")
+def get_config():
+    return {"db_type": DB_TYPE}
+
+
 @app.get("/")
 def serve_index():
     return FileResponse(STATIC_DIR / "index.html")
@@ -38,9 +45,14 @@ def serve_index():
 
 @app.get("/api/reports/weekly", response_model=List[ReportRow])
 def weekly_report(db: Session = Depends(get_db)):
+    if DB_TYPE == "sqlite":
+        period_expr = func.strftime("%Y-W%W", Trade.entry_date)
+    else:
+        period_expr = func.date_trunc("week", Trade.entry_date)
+
     rows = (
         db.query(
-            func.date_trunc("week", Trade.entry_date).label("period"),
+            period_expr.label("period"),
             func.count(Trade.id).label("total_trades"),
             func.sum(case((Trade.profit_loss_total > 0, 1), else_=0)).label("winning_trades"),
             func.sum(case((Trade.profit_loss_total < 0, 1), else_=0)).label("losing_trades"),
@@ -49,12 +61,12 @@ def weekly_report(db: Session = Depends(get_db)):
             func.coalesce(func.sum(Trade.quantity), 0).label("total_quantity"),
         )
         .group_by("period")
-        .order_by(func.date_trunc("week", Trade.entry_date).desc())
+        .order_by(period_expr.desc())
         .all()
     )
     return [
         ReportRow(
-            period=r.period.strftime("%Y-W%V") if r.period else "",
+            period=str(r.period) if r.period else "",
             total_trades=r.total_trades,
             winning_trades=r.winning_trades,
             losing_trades=r.losing_trades,
@@ -68,9 +80,14 @@ def weekly_report(db: Session = Depends(get_db)):
 
 @app.get("/api/reports/monthly", response_model=List[ReportRow])
 def monthly_report(db: Session = Depends(get_db)):
+    if DB_TYPE == "sqlite":
+        period_expr = func.strftime("%Y-%m", Trade.entry_date)
+    else:
+        period_expr = func.date_trunc("month", Trade.entry_date)
+
     rows = (
         db.query(
-            func.date_trunc("month", Trade.entry_date).label("period"),
+            period_expr.label("period"),
             func.count(Trade.id).label("total_trades"),
             func.sum(case((Trade.profit_loss_total > 0, 1), else_=0)).label("winning_trades"),
             func.sum(case((Trade.profit_loss_total < 0, 1), else_=0)).label("losing_trades"),
@@ -79,12 +96,12 @@ def monthly_report(db: Session = Depends(get_db)):
             func.coalesce(func.sum(Trade.quantity), 0).label("total_quantity"),
         )
         .group_by("period")
-        .order_by(func.date_trunc("month", Trade.entry_date).desc())
+        .order_by(period_expr.desc())
         .all()
     )
     return [
         ReportRow(
-            period=r.period.strftime("%Y-%m") if r.period else "",
+            period=str(r.period) if r.period else "",
             total_trades=r.total_trades,
             winning_trades=r.winning_trades,
             losing_trades=r.losing_trades,
@@ -98,67 +115,109 @@ def monthly_report(db: Session = Depends(get_db)):
 
 @app.get("/api/backup")
 def backup_database():
-    parsed = urlparse(DATABASE_URL)
-    dbname = parsed.path.lstrip("/")
-    user = parsed.username
-    password = parsed.password
-    host = parsed.hostname or "localhost"
-    port = parsed.port or 5432
-
-    cmd = [
-        "pg_dump",
-        "--dbname", DATABASE_URL,
-        "--format", "p",
-        "--clean",
-        "--if-exists",
-        "--no-owner",
-        "--no-acl",
-    ]
-
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Backup failed: {e.stderr}")
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="pg_dump not found. Install PostgreSQL client tools.")
-
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"trading_journal_backup_{timestamp}.sql"
 
-    return StreamingResponse(
-        iter([result.stdout]),
-        media_type="application/sql",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    if DB_TYPE == "sqlite":
+        import shutil
+        filename = f"trading_journal_backup_{timestamp}.db"
+        db_path = Path(DB_PATH)
+        
+        if not db_path.exists():
+            raise HTTPException(status_code=500, detail="SQLite database file not found.")
+        
+        def iter_file():
+            with open(db_path, "rb") as f:
+                yield from f
+        
+        return StreamingResponse(
+            iter_file(),
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    else:
+        parsed = urlparse(DATABASE_URL)
+        dbname = parsed.path.lstrip("/")
+        user = parsed.username
+        password = parsed.password
+        host = parsed.hostname or "localhost"
+        port = parsed.port or 5432
+
+        cmd = [
+            "pg_dump",
+            "--dbname", DATABASE_URL,
+            "--format", "p",
+            "--clean",
+            "--if-exists",
+            "--no-owner",
+            "--no-acl",
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        except subprocess.CalledProcessError as e:
+            raise HTTPException(status_code=500, detail=f"Backup failed: {e.stderr}")
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail="pg_dump not found. Install PostgreSQL client tools.")
+
+        filename = f"trading_journal_backup_{timestamp}.sql"
+
+        return StreamingResponse(
+            iter([result.stdout]),
+            media_type="application/sql",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
 
 @app.post("/api/restore")
 def restore_database(file: UploadFile = File(...)):
-    if not file.filename.endswith(".sql"):
-        raise HTTPException(status_code=400, detail="Only .sql files are accepted")
+    if DB_TYPE == "sqlite":
+        if not file.filename.endswith(".db"):
+            raise HTTPException(status_code=400, detail="Only .db files are accepted for SQLite restore")
+        
+        import shutil
+        db_path = Path(DB_PATH)
+        
+        # Save uploaded file temporarily
+        temp_path = db_path.with_suffix(".db.tmp")
+        with open(temp_path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        
+        # Replace current database
+        shutil.move(str(temp_path), str(db_path))
+        
+        # Remove WAL and SHM files if they exist
+        for suffix in ["-wal", "-shm"]:
+            wal_file = db_path.with_suffix(db_path.suffix + suffix)
+            if wal_file.exists():
+                wal_file.unlink()
+        
+        return {"message": "Database restored successfully. Please restart the application."}
+    else:
+        if not file.filename.endswith(".sql"):
+            raise HTTPException(status_code=400, detail="Only .sql files are accepted")
 
-    content = file.file.read().decode("utf-8")
-    content = "DROP TABLE IF EXISTS public.trades CASCADE;\n" + content
+        content = file.file.read().decode("utf-8")
+        content = "DROP TABLE IF EXISTS public.trades CASCADE;\n" + content
 
-    try:
-        result = subprocess.run(
-            ["psql", DATABASE_URL],
-            input=content,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-    except subprocess.CalledProcessError as e:
-        raise HTTPException(status_code=500, detail=f"Restore failed: {e.stderr}")
-    except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="psql not found. Install PostgreSQL client tools.")
+        try:
+            result = subprocess.run(
+                ["psql", DATABASE_URL],
+                input=content,
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+        except subprocess.CalledProcessError as e:
+            raise HTTPException(status_code=500, detail=f"Restore failed: {e.stderr}")
+        except FileNotFoundError:
+            raise HTTPException(status_code=500, detail="psql not found. Install PostgreSQL client tools.")
 
-    return {"message": "Database restored successfully"}
+        return {"message": "Database restored successfully"}
 
 
 @app.post("/api/trades", response_model=TradeResponse)
 def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
-    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", "EQ", "COM", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
+    direction = 1 if trade.buy_sell == "BUY" else -1
     if trade.exit_price is not None:
         pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
         pl_total = round(pl_per_unit * trade.quantity, 2)
@@ -182,6 +241,8 @@ def create_trade(trade: TradeCreate, db: Session = Depends(get_db)):
         returns_percent=returns_pct,
         customer_name=trade.customer_name,
         notes=trade.notes,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
     )
     db.add(db_trade)
     db.commit()
@@ -195,7 +256,7 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
     if not db_trade:
         raise HTTPException(status_code=404, detail="Trade not found")
 
-    direction = 1 if (trade.buy_sell == "BUY" and trade.option_type in ("CE", "EQ", "COM", "FUT", None, "")) or (trade.buy_sell == "SELL" and trade.option_type == "PE") else -1
+    direction = 1 if trade.buy_sell == "BUY" else -1
     if trade.exit_price is not None:
         pl_per_unit = round(direction * (trade.exit_price - trade.entry_price), 2)
         pl_total = round(pl_per_unit * trade.quantity, 2)
@@ -218,6 +279,7 @@ def update_trade(trade_id: int, trade: TradeCreate, db: Session = Depends(get_db
     db_trade.returns_percent = returns_pct
     db_trade.customer_name = trade.customer_name
     db_trade.notes = trade.notes
+    db_trade.updated_at = datetime.now(timezone.utc)
 
     db.commit()
     db.refresh(db_trade)
@@ -230,6 +292,7 @@ def list_trades(
     to_date: Optional[date] = Query(None),
     customer: Optional[str] = Query(None),
     search: Optional[str] = Query(None),
+    modified_since: Optional[datetime] = Query(None, description="Return trades updated at or after this datetime (ISO 8601)"),
     db: Session = Depends(get_db),
 ):
     query = db.query(Trade)
@@ -245,7 +308,11 @@ def list_trades(
             | Trade.notes.ilike(f"%{search}%")
             | Trade.customer_name.ilike(f"%{search}%")
         )
-    return query.order_by(Trade.entry_date.desc()).all()
+    if modified_since:
+        if modified_since.tzinfo is None:
+            modified_since = modified_since.replace(tzinfo=timezone.utc)
+        query = query.filter(Trade.updated_at >= modified_since)
+    return query.order_by(Trade.updated_at.desc()).all()
 
 
 @app.get("/api/trades/{trade_id}", response_model=TradeResponse)

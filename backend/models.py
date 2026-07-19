@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Date, Text
+from sqlalchemy import Column, Integer, String, Float, Date, Text, DateTime
 from database import Base
 
 
@@ -19,3 +19,5 @@ class Trade(Base):
     returns_percent = Column(Float, nullable=True)
     customer_name = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    updated_at = Column(DateTime(timezone=True), nullable=False)

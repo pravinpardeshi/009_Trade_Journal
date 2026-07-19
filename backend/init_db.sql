@@ -28,3 +28,12 @@ CREATE TABLE IF NOT EXISTS trades (
 -- ALTER TABLE trades ALTER COLUMN option_type DROP NOT NULL;
 -- ALTER TABLE trades ALTER COLUMN exit_date DROP NOT NULL;
 -- ALTER TABLE trades ALTER COLUMN exit_price DROP NOT NULL;
+
+-- ========================================
+-- SQLite Setup (alternative to PostgreSQL)
+-- ========================================
+-- To use SQLite instead of PostgreSQL:
+-- 1. Set environment variable: export DB_TYPE=sqlite
+-- 2. Optionally set DB_PATH: export DB_PATH=/path/to/trading_journal.db
+-- 3. Tables are created automatically on app startup.
+-- No manual SQL needed for SQLite.

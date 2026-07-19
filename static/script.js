@@ -3,6 +3,15 @@
 // =============================================
 const sidebar = document.getElementById("sidebar");
 
+// Fetch and display DB type
+fetch("/api/config")
+  .then((r) => r.json())
+  .then((cfg) => {
+    const el = document.getElementById("dbIndicator");
+    el.textContent = cfg.db_type === "sqlite" ? "SQLite" : "PostgreSQL";
+    el.classList.add(cfg.db_type === "sqlite" ? "db-sqlite" : "db-postgres");
+  });
+
 let hoverTimer = null;
 
 sidebar.addEventListener("mouseenter", () => {
@@ -93,10 +102,8 @@ function setDefaultDates() {
 
 function getDirection() {
   const bs = document.getElementById("buy_sell").value;
-  const ot = document.getElementById("option_type").value;
   if (!bs) return null;
-  if (!ot || ot === "EQ" || ot === "COM" || ot === "FUT") return bs === "BUY" ? 1 : -1;
-  return (bs === "BUY" && ot === "CE") || (bs === "SELL" && ot === "PE") ? 1 : -1;
+  return bs === "BUY" ? 1 : -1;
 }
 
 function updatePreview() {
@@ -717,14 +724,15 @@ function triggerBackup(btn) {
   const originalText = btn.textContent;
   btn.textContent = "Backing up...";
 
-  const filename = `trading_journal_backup_${new Date().toISOString().slice(0, 10)}.sql`;
-
   fetch("/api/backup")
     .then((r) => {
       if (!r.ok) throw new Error("Backup failed");
-      return r.blob();
+      const disposition = r.headers.get("Content-Disposition");
+      const match = disposition && disposition.match(/filename="?([^";\n]+)"?/);
+      const filename = match ? match[1] : `trading_journal_backup_${new Date().toISOString().slice(0, 10)}.db`;
+      return r.blob().then((blob) => ({ blob, filename }));
     })
-    .then((blob) => {
+    .then(({ blob, filename }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
