@@ -90,6 +90,142 @@ function formatDate(dateStr) {
   return `${+d} ${months[+m - 1]} ${y}`;
 }
 
+// =============================================
+// Table Sorting
+// =============================================
+let allTrades = [];
+let currentSort = { col: null, asc: true };
+
+const sortConfig = {
+  0:  { key: null,            type: "none"   },
+  1:  { key: "entry_date",    type: "date"   },
+  2:  { key: "exit_date",     type: "date"   },
+  3:  { key: "customer_name", type: "string" },
+  4:  { key: "scrip_name",    type: "string" },
+  5:  { key: "option_type",   type: "string" },
+  6:  { key: "buy_sell",      type: "string" },
+  7:  { key: "entry_price",   type: "number" },
+  8:  { key: "exit_price",    type: "number" },
+  9:  { key: "profit_loss_per_unit", type: "number" },
+  10: { key: "quantity",      type: "number" },
+  11: { key: "profit_loss_total", type: "number" },
+  12: { key: null,            type: "none"   },
+  13: { key: "returns_percent", type: "number" },
+  14: { key: "notes",         type: "string" },
+  15: { key: null,            type: "none"   },
+};
+
+function sortTrades(trades, colIdx, asc) {
+  const cfg = sortConfig[colIdx];
+  if (!cfg || !cfg.key) return trades;
+  const key = cfg.key;
+  const sorted = [...trades];
+  sorted.sort((a, b) => {
+    let va = a[key];
+    let vb = b[key];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (cfg.type === "date") {
+      va = va || "";
+      vb = vb || "";
+      return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+    }
+    if (cfg.type === "number") {
+      return asc ? va - vb : vb - va;
+    }
+    va = String(va).toLowerCase();
+    vb = String(vb).toLowerCase();
+    return asc ? va.localeCompare(vb) : vb.localeCompare(va);
+  });
+  return sorted;
+}
+
+function updateSortIndicators() {
+  document.querySelectorAll("#tradeTable thead th").forEach((th, i) => {
+    th.classList.remove("sort-asc", "sort-desc");
+    if (i === currentSort.col) {
+      th.classList.add(currentSort.asc ? "sort-asc" : "sort-desc");
+    }
+  });
+}
+
+function renderTrades(trades) {
+  tbody.innerHTML = "";
+  let runningPL = 0;
+  let totalPL = 0;
+  let totalQty = 0;
+  let winCount = 0;
+  trades.forEach((t, i) => {
+    const hasPL = t.profit_loss_total != null;
+    const isPLPositive = hasPL && t.profit_loss_total >= 0;
+    if (hasPL) {
+      runningPL += t.profit_loss_total;
+      runningPL = Math.round(runningPL * 100) / 100;
+      totalPL += t.profit_loss_total;
+      if (isPLPositive) winCount++;
+    }
+    totalQty += t.quantity;
+    const isOpen = t.exit_date == null || t.exit_price == null;
+    const isRunningPositive = runningPL >= 0;
+    const row = document.createElement("tr");
+    if (isOpen) row.classList.add("open-row");
+    row.dataset.id = t.id;
+    row.style.cursor = "pointer";
+    row.addEventListener("dblclick", () => editTrade(t.id));
+    row.innerHTML = `
+      <td>${i + 1}</td>
+      <td>${formatDate(t.entry_date)}</td>
+      <td class="${t.exit_date == null ? 'null-field' : ''}">${t.exit_date ? formatDate(t.exit_date) : '--'}</td>
+      <td>${t.customer_name || "--"}</td>
+      <td>${t.scrip_name}</td>
+      <td>${t.option_type || "--"}</td>
+      <td>${t.buy_sell}</td>
+      <td>${t.entry_price.toFixed(2)}</td>
+      <td class="${t.exit_price == null ? 'null-field' : ''}">${t.exit_price != null ? t.exit_price.toFixed(2) : '--'}</td>
+      <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "--"}</td>
+      <td>${t.quantity}</td>
+      <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "--"}</td>
+      <td class="${isRunningPositive ? "pl-positive" : "pl-negative"}">${runningPL.toFixed(2)}</td>
+      <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.returns_percent != null ? t.returns_percent.toFixed(2) + "%" : "--"}</td>
+      <td>${t.notes || "--"}</td>
+      <td>
+        <button class="edit-btn" data-id="${t.id}">Edit</button>
+        <button class="delete-btn" data-id="${t.id}">Delete</button>
+      </td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  if (trades.length > 0) {
+    const spacer = document.createElement("tr");
+    spacer.className = "totals-spacer";
+    spacer.innerHTML = `<td colspan="16" style="height: 12px;"></td>`;
+    tbody.appendChild(spacer);
+    totalPL = Math.round(totalPL * 100) / 100;
+    const isTotalPositive = totalPL >= 0;
+    const winRate = ((winCount / trades.length) * 100).toFixed(1);
+    const totalRow = document.createElement("tr");
+    totalRow.className = "totals-row";
+    totalRow.innerHTML = `
+      <td colspan="3"><strong>TOTAL</strong></td>
+      <td colspan="2">${trades.length} trades</td>
+      <td colspan="6">${winCount}W / ${trades.length - winCount}L (<span class="win-rate"><i>Win Ratio: </i>${winRate}%</span>)</td>
+      <td class="${isTotalPositive ? "pl-positive" : "pl-negative"}"><strong>${totalPL.toFixed(2)}</strong></td>
+      <td></td>
+      <td colspan="3"></td>
+    `;
+    tbody.appendChild(totalRow);
+  }
+
+  document.querySelectorAll(".delete-btn").forEach((btn) => {
+    btn.addEventListener("click", () => deleteTrade(btn.dataset.id));
+  });
+  document.querySelectorAll(".edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => editTrade(btn.dataset.id));
+  });
+}
+
 function setDefaultDates() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -181,84 +317,36 @@ function getTrades() {
     .then((res) => res.json())
     .then((trades) => {
       loading.style.display = "none";
-      tbody.innerHTML = "";
-      let runningPL = 0;
-      let totalPL = 0;
-      let totalQty = 0;
-      let winCount = 0;
-      trades.forEach((t, i) => {
-        const hasPL = t.profit_loss_total != null;
-        const isPLPositive = hasPL && t.profit_loss_total >= 0;
-        if (hasPL) {
-          runningPL += t.profit_loss_total;
-          runningPL = Math.round(runningPL * 100) / 100;
-          totalPL += t.profit_loss_total;
-          if (isPLPositive) winCount++;
-        }
-        totalQty += t.quantity;
-        const isOpen = t.exit_date == null || t.exit_price == null;
-        const isRunningPositive = runningPL >= 0;
-        const row = document.createElement("tr");
-        if (isOpen) row.classList.add("open-row");
-        row.dataset.id = t.id;
-        row.style.cursor = "pointer";
-        row.addEventListener("dblclick", () => editTrade(t.id));
-        row.innerHTML = `
-          <td>${i + 1}</td>
-          <td>${formatDate(t.entry_date)}</td>
-          <td class="${t.exit_date == null ? 'null-field' : ''}">${t.exit_date ? formatDate(t.exit_date) : '--'}</td>
-          <td>${t.customer_name || "--"}</td>
-          <td>${t.scrip_name}</td>
-          <td>${t.option_type || "--"}</td>
-          <td>${t.buy_sell}</td>
-          <td>${t.entry_price.toFixed(2)}</td>
-          <td class="${t.exit_price == null ? 'null-field' : ''}">${t.exit_price != null ? t.exit_price.toFixed(2) : '--'}</td>
-          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_per_unit != null ? t.profit_loss_per_unit.toFixed(2) : "--"}</td>
-          <td>${t.quantity}</td>
-          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.profit_loss_total != null ? t.profit_loss_total.toFixed(2) : "--"}</td>
-          <td class="${isRunningPositive ? "pl-positive" : "pl-negative"}">${runningPL.toFixed(2)}</td>
-          <td class="${hasPL ? (isPLPositive ? "pl-positive" : "pl-negative") : ""}">${t.returns_percent != null ? t.returns_percent.toFixed(2) + "%" : "--"}</td>
-          <td>${t.notes || "--"}</td>
-          <td>
-            <button class="edit-btn" data-id="${t.id}">Edit</button>
-            <button class="delete-btn" data-id="${t.id}">Delete</button>
-          </td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      if (trades.length > 0) {
-        const spacer = document.createElement("tr");
-        spacer.className = "totals-spacer";
-        spacer.innerHTML = `<td colspan="16" style="height: 12px;"></td>`;
-        tbody.appendChild(spacer);
-        totalPL = Math.round(totalPL * 100) / 100;
-        const isTotalPositive = totalPL >= 0;
-        const winRate = ((winCount / trades.length) * 100).toFixed(1);
-        const totalRow = document.createElement("tr");
-        totalRow.className = "totals-row";
-        totalRow.innerHTML = `
-          <td colspan="3"><strong>TOTAL</strong></td>
-          <td colspan="2">${trades.length} trades</td>
-          <td colspan="6">${winCount}W / ${trades.length - winCount}L (<span class="win-rate"><i>Win Ratio: </i>${winRate}%</span>)</td>
-          <td class="${isTotalPositive ? "pl-positive" : "pl-negative"}"><strong>${totalPL.toFixed(2)}</strong></td>
-          <td></td>
-          <td colspan="3"></td>
-        `;
-        tbody.appendChild(totalRow);
+      allTrades = trades;
+      let displayed = trades;
+      if (currentSort.col !== null) {
+        displayed = sortTrades(trades, currentSort.col, currentSort.asc);
       }
-
-      document.querySelectorAll(".delete-btn").forEach((btn) => {
-        btn.addEventListener("click", () => deleteTrade(btn.dataset.id));
-      });
-      document.querySelectorAll(".edit-btn").forEach((btn) => {
-        btn.addEventListener("click", () => editTrade(btn.dataset.id));
-      });
+      renderTrades(displayed);
     })
     .catch(() => {
       loading.textContent = "Failed to load trades. Is the backend running?";
     });
 }
+
+function applySort(colIdx) {
+  if (sortConfig[colIdx] && !sortConfig[colIdx].key) return;
+  if (currentSort.col === colIdx) {
+    currentSort.asc = !currentSort.asc;
+  } else {
+    currentSort.col = colIdx;
+    currentSort.asc = true;
+  }
+  updateSortIndicators();
+  const displayed = sortTrades(allTrades, currentSort.col, currentSort.asc);
+  renderTrades(displayed);
+}
+
+document.querySelectorAll("#tradeTable thead th").forEach((th, idx) => {
+  th.style.cursor = "pointer";
+  th.title = "Click to sort";
+  th.addEventListener("click", () => applySort(idx));
+});
 
 form.addEventListener("submit", (e) => {
   e.preventDefault();

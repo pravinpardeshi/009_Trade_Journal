@@ -515,6 +515,44 @@ button[type="submit"]:disabled {
   border-radius: 0 8px 0 0;
 }
 
+#tradeTable thead th.sort-asc,
+#tradeTable thead th.sort-desc {
+  background: #1e3a5f;
+}
+
+[data-theme="dark"] #tradeTable thead th.sort-asc,
+[data-theme="dark"] #tradeTable thead th.sort-desc {
+  background: #2d4a6f;
+}
+
+#tradeTable thead th.sort-asc::after,
+#tradeTable thead th.sort-desc::after {
+  content: "";
+  display: inline-block;
+  margin-left: 6px;
+  vertical-align: middle;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+}
+
+#tradeTable thead th.sort-asc::after {
+  border-bottom: 6px solid #60a5fa;
+}
+
+#tradeTable thead th.sort-desc::after {
+  border-top: 6px solid #60a5fa;
+}
+
+#tradeTable thead th:not(:last-child):not(:first-child):hover {
+  background: #2a4a6a;
+}
+
+[data-theme="dark"] #tradeTable thead th:not(:last-child):not(:first-child):hover {
+  background: #3a5a7a;
+}
+
 #tradeTable tbody tr:nth-child(even),
 #reportTable tbody tr:nth-child(even),
 #customerReportTable tbody tr:nth-child(even) {

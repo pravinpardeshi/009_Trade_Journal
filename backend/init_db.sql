@@ -19,12 +19,16 @@ CREATE TABLE IF NOT EXISTS trades (
     profit_loss_total DOUBLE PRECISION,
     returns_percent DOUBLE PRECISION,
     customer_name VARCHAR(255),
-    notes TEXT
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- If upgrading an existing database, run:
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS option_type VARCHAR(10);
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);
+-- ALTER TABLE trades ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();
+-- ALTER TABLE trades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();
 -- ALTER TABLE trades ALTER COLUMN option_type DROP NOT NULL;
 -- ALTER TABLE trades ALTER COLUMN exit_date DROP NOT NULL;
 -- ALTER TABLE trades ALTER COLUMN exit_price DROP NOT NULL;

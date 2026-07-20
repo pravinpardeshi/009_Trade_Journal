@@ -5,7 +5,7 @@ A web-based trading journal to track and analyze stock/option trades. Built with
 ## Features
 
 - **Entry Form** — Log trades with scrip name, option type (CE/PE), buy/sell direction, entry/exit price, quantity, and notes. P/L is auto-calculated based on direction and option type.
-- **Trade History** — View all trades in a sortable table with date range filtering. Export to CSV.
+- **Trade History** — View all trades in a table with click-to-sort column headers (ascending/descending toggle). Date range, customer, and text filtering. Export to CSV.
 - **Reports** — Weekly and monthly aggregated reports showing total trades, wins, losses, win rate, P/L, return %, and quantity.
 - **PDF Export** — Export reports and trade history to PDF (client-side using jsPDF).
 - **Database Backup & Restore** — Download a full backup (`.sql` for PostgreSQL, `.db` for SQLite), or restore from a previous backup.
