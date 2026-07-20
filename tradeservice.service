@@ -1,0 +1,21 @@
+[Unit]
+Description=Trading Journal API Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pravin
+WorkingDirectory=/home/pravin/opencode_projects/010_reporting_app/backend
+ExecStart=/home/pravin/opencode_projects/010_reporting_app/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8223 --ssl-keyfile /home/pravin/opencode_projects/010_reporting_app/backend/certs/server.key --ssl-certfile /home/pravin/opencode_projects/010_reporting_app/backend/certs/server.crt
+Restart=on-failure
+RestartSec=5
+KillMode=mixed
+TimeoutStopSec=10
+Environment=PYTHONUNBUFFERED=1
+Environment=DB_TYPE=postgres
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

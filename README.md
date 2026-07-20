@@ -84,24 +84,40 @@ A web-based trading journal to track and analyze stock/option trades. Built with
 
    ```sh
    mkdir -p backend/certs
-   openssl req -x509 -newkey rsa:2048 -keyout backend/certs/server.key -out backend/certs/server.crt -days 365 -nodes -subj "/C=IN/ST=State/L=City/O=TradingJournal/CN=YOUR_IP"
+   openssl req -x509 -newkey rsa:2048 -keyout backend/certs/server.key -out backend/certs/server.crt -days 365 -nodes -subj "/C=IN/ST=State/L=City/O=TradingJournal/CN=YOUR_IP" -addext "subjectAltName=IP:YOUR_IP"
    ```
 
-   Replace `YOUR_IP` with your server's IP address (e.g., `192.168.2.177`).
+   Replace `YOUR_IP` with your server's IP address (e.g., `192.168.2.177`). The SAN extension is required — modern browsers reject self-signed certificates without one.
 
 6. **Start the server**
 
-   ```sh
-   cd backend && uvicorn main:app --reload --ssl-keyfile certs/server.key --ssl-certfile certs/server.crt
-   ```
-
-   Or use the helper script:
+   **Option A: Development (`start.sh`)**
 
    ```sh
-   ./start.sh          # start in background
+   ./start.sh          # start in background (with --reload for live code changes)
    ./start.sh stop     # stop
    ./start.sh restart  # restart
    ```
+
+   **Option B: Production (systemd service)**
+
+   ```sh
+   sudo cp tradeservice.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable tradeservice
+   sudo systemctl start tradeservice
+   ```
+
+   Manage the service:
+
+   ```sh
+   sudo systemctl status tradeservice
+   sudo systemctl restart tradeservice
+   sudo systemctl stop tradeservice
+   sudo journalctl -u tradeservice -f   # tail logs
+   ```
+
+   To switch database type, edit the `Environment=DB_TYPE=` line in the service file, then `sudo systemctl daemon-reload && sudo systemctl restart tradeservice`.
 
 7. **Open the app**
 
@@ -128,8 +144,20 @@ reporting-app/
 │   ├── style.css        # All styles with theme variables
 │   └── script.js        # All frontend logic
 ├── start.sh             # Helper to run/manage the server
+├── tradeservice.service # systemd unit file for production
 └── README.md
 ```
+
+## `start.sh` vs systemd service
+
+| | `start.sh` | `tradeservice.service` |
+|---|---|---|
+| Use case | Development | Production |
+| Auto-restart on crash | No | Yes (`Restart=on-failure`) |
+| Starts on boot | No | Yes (`systemctl enable`) |
+| Live code reload | Yes (`--reload`) | No (requires `systemctl restart`) |
+| Logs | `uvicorn.log` (single file) | systemd journal (rotated) |
+| Process tracking | PID file (`uvicorn.pid`) | Managed by systemd |
 
 ## API Endpoints
 
