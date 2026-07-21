@@ -1,6 +1,6 @@
 import os
 import subprocess
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urlparse
@@ -43,12 +43,23 @@ def serve_index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+def get_week_date_range(period: str):
+    parts = period.split("-W")
+    year = int(parts[0])
+    week = int(parts[1])
+    jan4 = date(year, 1, 4)
+    start_of_week1 = jan4 - timedelta(days=jan4.weekday())
+    start = start_of_week1 + timedelta(weeks=week - 1)
+    end = start + timedelta(days=6)
+    return start.isoformat(), end.isoformat()
+
+
 @app.get("/api/reports/weekly", response_model=List[ReportRow])
 def weekly_report(db: Session = Depends(get_db)):
     if DB_TYPE == "sqlite":
         period_expr = func.strftime("%Y-W%W", Trade.entry_date)
     else:
-        period_expr = func.date_trunc("week", Trade.entry_date)
+        period_expr = func.to_char(Trade.entry_date, 'IYYY-"W"IW')
 
     rows = (
         db.query(
@@ -73,6 +84,8 @@ def weekly_report(db: Session = Depends(get_db)):
             total_pl=round(r.total_pl, 2),
             period_return_pct=round((r.total_pl / r.total_investment) * 100, 2) if r.total_investment else None,
             total_quantity=r.total_quantity,
+            period_start_date=get_week_date_range(r.period)[0] if r.period else None,
+            period_end_date=get_week_date_range(r.period)[1] if r.period else None,
         )
         for r in rows
     ]
@@ -83,7 +96,7 @@ def monthly_report(db: Session = Depends(get_db)):
     if DB_TYPE == "sqlite":
         period_expr = func.strftime("%Y-%m", Trade.entry_date)
     else:
-        period_expr = func.date_trunc("month", Trade.entry_date)
+        period_expr = func.to_char(Trade.entry_date, 'YYYY-MM')
 
     rows = (
         db.query(

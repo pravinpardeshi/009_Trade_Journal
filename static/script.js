@@ -458,9 +458,17 @@ const reportTitle = document.getElementById("reportTitle");
 const reportBody = document.getElementById("reportTableBody");
 const reportBtns = document.querySelectorAll(".report-btn[data-report]");
 
-function formatPeriod(period) {
+function formatPeriod(period, startDate, endDate) {
   if (/^\d{4}-W\d{2}$/.test(period)) {
     const [year, week] = period.split("-W");
+    if (startDate && endDate) {
+      const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      const s = new Date(startDate + "T00:00:00");
+      const e = new Date(endDate + "T00:00:00");
+      const sStr = `${months[s.getMonth()]} ${s.getDate()}`;
+      const eStr = `${months[e.getMonth()]} ${e.getDate()}`;
+      return `Week ${week}, ${year} (${sStr} - ${eStr})`;
+    }
     return `Week ${week}, ${year}`;
   }
   if (/^\d{4}-\d{2}$/.test(period)) {
@@ -542,7 +550,7 @@ function loadReport(type) {
         const isPLPositive = r.total_pl >= 0;
         const tr = document.createElement("tr");
         tr.innerHTML = `
-          <td class="report-period">${formatPeriod(r.period)}</td>
+          <td class="report-period">${formatPeriod(r.period, r.period_start_date, r.period_end_date)}</td>
           <td class="num">${r.total_trades}</td>
           <td class="num pl-positive">${r.winning_trades}</td>
           <td class="num pl-negative">${r.losing_trades}</td>

@@ -45,3 +45,5 @@ class ReportRow(BaseModel):
     total_pl: float
     period_return_pct: Optional[float] = None
     total_quantity: int
+    period_start_date: Optional[str] = None
+    period_end_date: Optional[str] = None
