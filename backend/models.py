@@ -9,7 +9,7 @@ class Trade(Base):
     entry_date = Column(Date, nullable=False)
     exit_date = Column(Date, nullable=True)
     scrip_name = Column(String(255), nullable=False)
-    option_type = Column(String(10), nullable=True)
+    option_type = Column(String(15), nullable=True)
     buy_sell = Column(String(10), nullable=False)
     entry_price = Column(Float, nullable=False)
     exit_price = Column(Float, nullable=True)

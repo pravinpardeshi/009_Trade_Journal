@@ -71,6 +71,7 @@ def weekly_report(db: Session = Depends(get_db)):
             func.coalesce(func.sum(Trade.entry_price * Trade.quantity), 0).label("total_investment"),
             func.coalesce(func.sum(Trade.quantity), 0).label("total_quantity"),
         )
+        .filter(Trade.option_type != "INVESTMENTS")
         .group_by("period")
         .order_by(period_expr.desc())
         .all()
@@ -108,6 +109,7 @@ def monthly_report(db: Session = Depends(get_db)):
             func.coalesce(func.sum(Trade.entry_price * Trade.quantity), 0).label("total_investment"),
             func.coalesce(func.sum(Trade.quantity), 0).label("total_quantity"),
         )
+        .filter(Trade.option_type != "INVESTMENTS")
         .group_by("period")
         .order_by(period_expr.desc())
         .all()
@@ -124,6 +126,58 @@ def monthly_report(db: Session = Depends(get_db)):
         )
         for r in rows
     ]
+
+
+@app.get("/api/reports/investments")
+def get_investments_report(db: Session = Depends(get_db)):
+    trades = db.query(Trade).filter(Trade.option_type == "INVESTMENTS").order_by(Trade.entry_date.desc()).all()
+
+    result = []
+    for t in trades:
+        today = date.today()
+        holding_days = (today - t.entry_date).days if t.entry_date else 0
+        holding_years = round(holding_days / 365.25, 1) if holding_days > 0 else 0
+
+        if t.exit_price is not None:
+            unrealized_pl = t.profit_loss_total or 0
+            unrealized_pl_per_unit = t.profit_loss_per_unit or 0
+            status = "Closed"
+        else:
+            unrealized_pl_per_unit = round(t.entry_price * (-1), 2) if t.buy_sell == "BUY" else round(t.entry_price, 2)
+            unrealized_pl = None
+            status = "Open"
+
+        result.append({
+            "id": t.id,
+            "entry_date": t.entry_date.isoformat() if t.entry_date else None,
+            "exit_date": t.exit_date.isoformat() if t.exit_date else None,
+            "scrip_name": t.scrip_name,
+            "buy_sell": t.buy_sell,
+            "entry_price": t.entry_price,
+            "exit_price": t.exit_price,
+            "quantity": t.quantity,
+            "customer_name": t.customer_name or "",
+            "notes": t.notes or "",
+            "status": status,
+            "holding_days": holding_days,
+            "holding_years": holding_years,
+            "unrealized_pl": unrealized_pl,
+            "unrealized_pl_per_unit": unrealized_pl_per_unit,
+        })
+
+    total_invested = sum(t.entry_price * t.quantity for t in trades if t.buy_sell == "BUY")
+    open_count = sum(1 for t in result if t["status"] == "Open")
+    closed_count = sum(1 for t in result if t["status"] == "Closed")
+
+    return {
+        "investments": result,
+        "summary": {
+            "total_count": len(result),
+            "open_count": open_count,
+            "closed_count": closed_count,
+            "total_invested": round(total_invested, 2),
+        },
+    }
 
 
 @app.get("/api/backup")

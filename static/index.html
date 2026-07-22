@@ -82,6 +82,7 @@
               <option value="FUT">Futures</option>
               <option value="CE">CE (Call Option)</option>
               <option value="PE">PE (Put Option)</option>
+              <option value="INVESTMENTS">Investments (Long Term)</option>
             </select>
           </div>
           <div class="form-group">
@@ -120,11 +121,13 @@
     <section class="content-section" id="section-reports">
       <h1>Reports</h1>
       <div class="report-actions">
+        <button class="report-btn" data-report="summary">Summary</button>
         <button class="report-btn active" data-report="weekly">Weekly Report</button>
         <button class="report-btn" data-report="monthly">Monthly Report</button>
-        <button class="report-btn" data-report="summary">Summary</button>
+        <button class="report-btn" data-report="investments">Investments</button>
         <button class="report-btn" data-report="customer">Customer Report</button>
         <button class="export-btn" id="exportReportPDF">Export PDF</button>
+        <button class="export-btn" id="exportInvestmentsCSV" style="display:none;">Export CSV</button>
       </div>
       <div id="customerReportFiltersRow" class="filter-bar" style="display: none; margin-top: 0.75rem;">
         <div class="filter-group">
@@ -140,7 +143,7 @@
             <option value="pdf">PDF</option>
           </select>
         </div>
-        <button class="report-btn" id="generateCustomerReport" style="align-self: flex-end;">Generate Report</button>
+        <button class="report-btn" id="generateCustomerReport" style="align-self: flex-end;">Generate & Export Report</button>
       </div>
       <div id="reportContainer">
         <h3 id="reportTitle">Weekly Report</h3>
@@ -210,6 +213,18 @@
           <label for="filter_search">Search</label>
           <input type="text" id="filter_search" placeholder="Scrip, notes...">
         </div>
+        <div class="filter-group">
+          <label for="filter_instrument">Instrument</label>
+          <select id="filter_instrument">
+            <option value="">All</option>
+            <option value="EQ">Equity</option>
+            <option value="COM">Commodity</option>
+            <option value="FUT">Futures</option>
+            <option value="CE">CE</option>
+            <option value="PE">PE</option>
+            <option value="INVESTMENTS">Investments</option>
+          </select>
+        </div>
         <button class="filter-btn" id="filterApply">Apply</button>
         <button class="filter-btn filter-clear" id="filterClear">Clear</button>
         <button class="export-btn" id="exportTradesCSV">Export CSV</button>
@@ -276,6 +291,6 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="/static/script.js"></script>
+  <script src="/static/script.js?v=2"></script>
 </body>
 </html>

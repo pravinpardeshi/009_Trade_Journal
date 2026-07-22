@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS trades (
     entry_date DATE NOT NULL,
     exit_date DATE,
     scrip_name VARCHAR(255) NOT NULL,
-    option_type VARCHAR(10),
+    option_type VARCHAR(15),
     buy_sell VARCHAR(10) NOT NULL,
     entry_price DOUBLE PRECISION NOT NULL,
     exit_price DOUBLE PRECISION,
@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS trades (
 );
 
 -- If upgrading an existing database, run:
--- ALTER TABLE trades ADD COLUMN IF NOT EXISTS option_type VARCHAR(10);
+-- ALTER TABLE trades ADD COLUMN IF NOT EXISTS option_type VARCHAR(15);
+-- ALTER TABLE trades ALTER COLUMN option_type TYPE VARCHAR(15);
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS customer_name VARCHAR(255);
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();
 -- ALTER TABLE trades ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW();
